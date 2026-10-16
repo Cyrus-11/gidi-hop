@@ -16,9 +16,12 @@ export const START_NG = findStartNg();
 /** The page opened with ?guest: the start.ng homepage already asked "sign in or guest?". */
 export const ASKED_GUEST = new URLSearchParams(location.search).has('guest');
 
+/** True when the player has just come back from signing in on start.ng. */
+export const BACK_FROM_SIGN_IN = location.hash.includes('startng_session');
+
 // After sign-in start.ng sends the player back with #startng_session=… in the address.
 // The connect page doesn't need it, so tidy it away.
-if (location.hash.includes('startng_session')) {
+if (BACK_FROM_SIGN_IN) {
   history.replaceState(null, '', location.pathname + location.search);
 }
 

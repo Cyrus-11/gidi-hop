@@ -1,7 +1,7 @@
 // Gidi Hop: boots the game, asks start.ng who's playing, and runs the menu, HUD and game-over screens.
 import { Game } from './game.js';
 import { DEFAULT_STYLE } from './character.js';
-import { START_NG, ASKED_GUEST, whoami, onUserChange, signIn, saveRun, getLeaderboard } from './platform.js';
+import { START_NG, ASKED_GUEST, BACK_FROM_SIGN_IN, whoami, onUserChange, signIn, saveRun, getLeaderboard } from './platform.js';
 import { getBest, saveBest } from './scores.js';
 import { unlockAudio, toggleMute, isMuted, sfx } from './audio.js';
 
@@ -314,24 +314,49 @@ function applyReply(reply) {
   if (!session.user && before !== null) session.chose = null; // signed out on start.ng: ask again
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Called whenever start.ng tells us who's playing (first check, retries, rechecks).
+function onAnswer(reply) {
+  session.reachable = true;
+  session.checked = true;
+  applyReply(reply);
+  // mid-run the new look shows straight away; menus update now
+  if (!ui.menu.hidden) renderMenu();
+  else renderPlayerChip();
+  if (!ui.over.hidden) $('over-sign-in').hidden = !!session.user;
+}
+
 async function connect() {
   showScreen('menu');
   renderMenu();
   if (!START_NG) return;
-  const reply = await whoami();
-  session.checked = true;
-  if (reply) applyReply(reply);
-  else session.reachable = false; // no answer: unknown, so offer both buttons
-  renderMenu();
+  if (BACK_FROM_SIGN_IN) $('status').textContent = 'Signing you in…';
 
-  onUserChange((next) => {
-    session.reachable = true;
-    applyReply(next);
-    // mid-run the new look shows straight away; menus update now
-    if (!ui.menu.hidden) renderMenu();
-    else renderPlayerChip();
-    if (!ui.over.hidden) $('over-sign-in').hidden = !!session.user;
-  }, () => session.user?.id ?? null);
+  // The first answer. Just back from signing in, start.ng can take a moment to catch up,
+  // so a "nobody" answer is checked again a few times before we believe it.
+  // No answer at all is handled by the background retries below, so the menu never waits long.
+  let reply = await whoami();
+  for (let attempt = 1; BACK_FROM_SIGN_IN && reply && !reply.user && attempt < 4; attempt++) {
+    await sleep(700 * attempt);
+    reply = (await whoami()) ?? reply;
+  }
+  session.checked = true;
+  if (reply) onAnswer(reply);
+  else {
+    session.reachable = false; // no answer: unknown, so offer both buttons
+    renderMenu();
+  }
+
+  // Ask again when the player comes back to the tab (they may have signed in or out).
+  onUserChange(onAnswer, () => session.user?.id ?? null);
+
+  // start.ng hasn't answered at all yet (slow network): keep asking quietly in the background.
+  for (let wait = 3000; !session.reachable && wait < 60000; wait *= 1.6) {
+    await sleep(wait);
+    const late = await whoami();
+    if (late) onAnswer(late);
+  }
 }
 
 // ---------------------------------------------------------------- cover picture (?cover)
