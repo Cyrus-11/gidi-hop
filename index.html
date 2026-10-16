@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Gidi Hop</title>
+  <meta name="description" content="Hop across a busy Lagos street as your start.ng character. Mind the danfo!">
+  <meta name="theme-color" content="#f7c600">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap">
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-label="Gidi Hop game"></canvas>
+
+  <!-- who's playing: the player's start.ng name, or Guest -->
+  <div id="player-chip" class="chip" hidden>
+    <img id="player-face" alt="">
+    <div class="chip-text">
+      <b id="player-name">Guest</b>
+      <span id="player-account"></span>
+    </div>
+    <button id="chip-sign-in" class="chip-btn" type="button" hidden>Sign in</button>
+  </div>
+
+  <div id="hud" hidden>
+    <div class="hud-score"><span id="hud-hops">0</span><small>hops</small></div>
+    <div class="hud-coins"><span class="naira">₦</span><span id="hud-coins">0</span></div>
+  </div>
+
+  <button id="mute" class="round-btn" type="button" aria-label="Mute sound" title="Mute (M)">🔊</button>
+
+  <!-- menu -->
+  <section id="menu" class="screen">
+    <div class="panel">
+      <h1 class="logo"><span>GIDI</span><span>HOP</span></h1>
+      <p class="tagline">Hop across Lagos. Mind the danfo!</p>
+      <p id="greeting" class="greeting"></p>
+      <p id="status" class="status">Connecting to start.ng…</p>
+      <div id="menu-buttons" class="buttons"></div>
+      <p id="note" class="note" hidden></p>
+      <p id="menu-best" class="best" hidden></p>
+      <button id="open-board" class="link-btn" type="button" hidden>🏆 Leaderboard</button>
+      <p class="controls"><span class="keys">↑ ↓ ← → or WASD to hop</span><span class="touch">Tap to hop forward · swipe to turn</span></p>
+    </div>
+  </section>
+
+  <!-- game over -->
+  <section id="over" class="screen" hidden>
+    <div class="panel">
+      <p id="over-message" class="over-message"></p>
+      <div class="result">
+        <div><span id="over-hops">0</span><small>hops</small></div>
+        <div><span id="over-coins">0</span><small>₦ coins</small></div>
+      </div>
+      <p id="over-best" class="best"></p>
+      <p id="over-rank" class="rank"></p>
+      <div id="over-board" class="board" hidden></div>
+      <div class="buttons">
+        <button id="again" class="btn primary" type="button">Hop again</button>
+        <button id="over-sign-in" class="btn" type="button" hidden>Sign in to save runs</button>
+      </div>
+      <button id="to-menu" class="link-btn" type="button">Menu</button>
+    </div>
+  </section>
+
+  <!-- leaderboard from the menu -->
+  <section id="board-screen" class="screen" hidden>
+    <div class="panel">
+      <h2>🏆 Top hoppers</h2>
+      <div id="board-list" class="board"></div>
+      <button id="close-board" class="btn primary" type="button">Back</button>
+    </div>
+  </section>
+
+  <div id="cover-title" hidden><h1 class="logo big"><span>GIDI</span><span>HOP</span></h1></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
