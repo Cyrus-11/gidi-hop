@@ -28,6 +28,17 @@ Gidi Hop is a Crossy-Road-style hopper set on a busy Lagos ("Gidi") street, draw
 | Fall more than ~4 rows behind the camera | "Agbero catch you. You too slow!" |
 
 - The camera creeps forward on its own once you've hopped, so you can't stand still forever.
+- **Near miss:** if a vehicle or train passes through the spot you hopped out of within 0.6 s, you get **+₦1** and a "Close one!" pop-up (at most once per hop).
+- **Pause:** P, Esc or the ⏸ button. The game also pauses by itself when the tab or app is hidden. While paused, nothing moves and the camera stops.
+- **Start hint:** each run starts with "↑ to hop / ← → to dodge" ("Tap to hop / Swipe to dodge" on phones). It fades after the first hop or after 5 s.
+- **Share:** the game-over screen has **📣 Share score**. It uses the device's share sheet (`navigator.share`) where there is one; otherwise it copies "I hopped N rows across Lagos in Gidi Hop… https://gidi-hop.start.ng".
+
+### Daily Street
+
+- **📅 Daily Street** on the menu builds the street from a seed made from today's date in Lagos time (`dailySeed()` in `scores.js`), so everyone gets exactly the same street that day. A new street starts at midnight WAT.
+- The street's layout uses its own random-number stream, separate from train timings (`World.rand` vs `World.timerRand`). How long you play never changes what's ahead.
+- start.ng keeps **one leaderboard per game**, so there's no separate daily board on start.ng. Daily runs count on the main leaderboard like any run. **Today's best** is kept on the device (`localStorage`, key `gidi-hop:best:<id>:daily:<date>`). The share message says "on the Daily Street (Fri 16 Oct)" so friends can compare.
+- The HUD shows a 📅 tag during daily runs, and the game-over screen says "DAILY STREET · *date*".
 - You can't walk into stalls, palms, drums or generators, off the sides (columns −6 to 6), or back past the start.
 
 ### Lanes
@@ -183,9 +194,19 @@ Tested in headless Chrome 1280×800, plus a 390×844 phone viewport with touch, 
 - `?guest` skips the sign-in question
 - start.ng not answering: the game gives up after about 3.1 s and offers both buttons with a note; a recheck with no answer does **not** sign the player out
 
+**Update 1 (hint, near miss, pause, share, daily street), at desktop and 390 px phone size (all passed)**
+- The hint shows when a run starts and goes after the first hop
+- P pauses: traffic, trains and the camera stop, and arrows are ignored; Space resumes; hiding the tab pauses
+- A near miss gives +₦1 and the "Close one! +₦1" pop-up, without killing you
+- Share copies the score and link when there's no share sheet, and a toast confirms; daily runs mention the Daily Street
+- Daily Street: the same street on "Hop again", the same street in another tab, and a different street from free play; the HUD and game over show the daily labels
+- Sign-in after a slow or lagging start.ng: you end up signed in
+
 **Not tested**
 - The real start.ng connect page and leaderboard (they only answer games served from `*.start.ng`, so real sign-in, saving scores and the live board can only be checked once the game is live)
 - The full local start.ng stack (front end, back end and Worker)
 - Real phones and Safari (only Chrome with a phone-sized viewport and touch emulation)
 - How the sound actually sounds (headless Chrome has no audio output; the code runs without errors)
+- The native share sheet on real phones (headless Chrome can't open one, so only the copy fallback was tested)
+- The daily street rolling over at midnight Lagos time (the date logic was checked, but not across a real midnight)
 - Long sessions beyond about 80 hops and the hardest difficulty (row 250+)

@@ -30,7 +30,8 @@ export function makeRandom(seed) {
 export class World {
   constructor(scene, seed) {
     this.scene = scene;
-    this.rand = makeRandom(seed);
+    this.rand = makeRandom(seed); // the street's layout: same seed, same street
+    this.timerRand = makeRandom(seed ^ 0x9e3779b9); // train timings, kept apart so the layout never depends on timing
     this.rows = new Map();
     this.root = new THREE.Group();
     scene.add(this.root);
@@ -314,7 +315,7 @@ export class World {
       if (Math.abs(t.x) > HALF + t.len / 2 + 1) {
         t.state = 'idle';
         t.mesh.visible = false;
-        t.timer = 3 + this.rand() * 4;
+        t.timer = 3 + this.timerRand() * 4;
       }
     }
     t.mesh.position.set(t.x, LANE_Y.rail, 0);

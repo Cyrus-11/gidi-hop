@@ -43,3 +43,26 @@ export function getMuted() {
 export function setMuted(muted) {
   write('muted', muted ? '1' : '0');
 }
+
+// ---- the daily street: everyone gets the same street for the day (Lagos time)
+
+/** Today's date in Lagos as YYYY-MM-DD. */
+export function todayInLagos(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
+/** A street seed from a date, the same in every browser. */
+export function dailySeed(day = todayInLagos()) {
+  let h = 2166136261;
+  for (const ch of `gidi-hop:${day}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return (h >>> 0) % 1e9;
+}
+
+/** Best run on today's daily street in this browser: { hops, coins }. */
+export function getDailyBest(playerKey, day = todayInLagos()) {
+  return getBest(`${playerKey}:daily:${day}`);
+}
+
+export function saveDailyBest(playerKey, run, day = todayInLagos()) {
+  return saveBest(`${playerKey}:daily:${day}`, run);
+}

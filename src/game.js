@@ -23,9 +23,10 @@ const DEATHS = {
 };
 
 export class Game {
-  constructor(canvas, { seed, onUpdate = () => {}, onDeath = () => {} } = {}) {
+  constructor(canvas, { seed, onUpdate = () => {}, onDeath = () => {}, onEvent = () => {} } = {}) {
     this.onUpdate = onUpdate;
     this.onDeath = onDeath;
+    this.onEvent = onEvent; // { type: 'nearMiss', x, y } with x, y in screen pixels
     this.fixedSeed = seed; // set by ?seed= so every run is the same street
     this.invincible = false;
 
@@ -100,8 +101,9 @@ export class Game {
     this.player = {
       row: 0, x: 0, y: LANE_Y.sidewalk, facing: 'back',
       hop: null, queue: [], floater: null, dead: false, deathAt: 0,
-      maxRow: 0, coins: 0,
+      maxRow: 0, coins: 0, left: null,
     };
+    this.paused = false;
     this.focus = 0; // the row the camera looks at; it creeps forward on its own
     this.started = false;
     this.camX = 0;
@@ -111,10 +113,13 @@ export class Game {
     this.emit();
   }
 
-  start() {
+  /** Starts a run; a seed (the daily street) always builds a fresh street from it. */
+  start(seed) {
     if (this.state === 'playing') return;
-    if (this.player.dead || this.player.maxRow > 0) this.reset(this.fixedSeed);
+    if (seed !== undefined) this.reset(seed);
+    else if (this.player.dead || this.player.maxRow > 0) this.reset(this.fixedSeed);
     this.state = 'playing';
+    this.paused = false;
     this.player.facing = 'forward';
     sfx.start();
   }
@@ -130,7 +135,7 @@ export class Game {
   // ---- input
 
   move(dir) {
-    if (this.state !== 'playing' || this.player.dead) return;
+    if (this.state !== 'playing' || this.player.dead || this.paused) return;
     const p = this.player;
     if (p.hop) {
       if (p.queue.length < 1) p.queue.push(dir);
@@ -157,6 +162,9 @@ export class Game {
     }
     p.hop = { fromX: p.x, toX, fromRow: p.row, toRow, fromY: p.y, toY: target.y, t: 0 };
     p.floater = null;
+    // remember the lane we're leaving, for near misses
+    const from = this.world.row(p.row);
+    p.left = toRow !== p.row && (from?.type === 'road' || from?.type === 'rail') ? { row: p.row, x: p.x, at: this.time } : null;
     this.started = true;
     sfx.hop();
   }
@@ -237,6 +245,10 @@ export class Game {
       this.renderer.render(this.scene, this.camera);
       return;
     }
+    if (this.paused) {
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
     this.world.update(dt, p.row);
     for (const e of this.world.events.splice(0)) {
       if (e.type === 'bell') sfx.bell();
@@ -277,6 +289,7 @@ export class Game {
       return this.die(hit.kind);
     }
     this.honk(row, x);
+    this.nearMiss();
 
     // the camera keeps creeping forward; fall too far behind and the agbero gets you
     if (this.started) {
@@ -285,6 +298,48 @@ export class Game {
     }
     this.focus = Math.max(this.focus, THREE.MathUtils.lerp(this.focus, p.row, Math.min(1, dt * 4)));
     if (p.row < this.focus - 4.2) this.die('caught');
+  }
+
+  /** A vehicle or train rushing through the spot you just hopped out of: +₦1 and a pop-up. */
+  nearMiss() {
+    const p = this.player;
+    const left = p.left;
+    if (!left) return;
+    if (this.time - left.at > 0.6) {
+      p.left = null;
+      return;
+    }
+    if (p.hop && p.hop.t < 0.5) return; // still in that lane
+    const lane = this.world.row(left.row);
+    const close = lane.type === 'rail'
+      ? lane.train?.state === 'pass' && Math.abs(lane.train.x - left.x) < lane.train.len / 2 + 0.4
+      : lane.movers.some((m) => Math.abs(m.x - left.x) < m.len / 2 + 0.35);
+    if (!close) return;
+    p.left = null;
+    p.coins += 1;
+    sfx.coin();
+    this.emit();
+    this.onEvent({ type: 'nearMiss', ...this.screenPos() });
+  }
+
+  /** Where the player is on screen, in CSS pixels. */
+  screenPos() {
+    const v = this.playerMesh.position.clone();
+    v.y += 1.1;
+    v.project(this.camera);
+    const el = this.renderer.domElement;
+    return { x: (v.x + 1) / 2 * el.clientWidth, y: (1 - v.y) / 2 * el.clientHeight };
+  }
+
+  pause() {
+    if (this.state !== 'playing' || this.player.dead) return false;
+    this.paused = true;
+    return true;
+  }
+
+  resume() {
+    this.paused = false;
+    this.clock.getDelta(); // don't count the time spent paused
   }
 
   honk(row, x) {

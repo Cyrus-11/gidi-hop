@@ -14,9 +14,14 @@ Hop across a busy Lagos street as your own [start.ng](https://start.ng) characte
 | Hop back           | ↓ or S                | Swipe down                  |
 | Hop left / right   | ← → or A D            | Swipe left / right          |
 | Start / play again | Space or Enter        | Tap the button              |
+| Pause / resume     | P or Esc              | ⏸ button                     |
 | Mute               | M                     | 🔊 button                    |
 
 - **Score:** `hops` is the furthest row you reached; `₦ coins` are what you picked up (a gold ₦ is worth 5).
+- **Close one! +₦1:** hop out of a lane just as a vehicle or train rushes through the spot you left.
+- **📅 Daily Street:** one street for the whole day (Lagos time), the same for everyone, so you can compare runs with friends. The game keeps today's best on your device; daily runs also count on the main leaderboard.
+- **Share score:** on the game-over screen. It opens your phone's share sheet, or copies the message and link on a computer.
+- The game pauses by itself when you switch tabs or apps.
 - **You lose if** a vehicle or train hits you, you land in the lagoon or gutter, a canoe carries you off the side, or you stand still too long and the camera leaves you behind (*"Agbero catch you!"*).
 - It gets harder the further you go: faster traffic, longer stretches of road and wider gaps on the water.
 

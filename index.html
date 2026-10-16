@@ -33,11 +33,18 @@
   </div>
 
   <div id="hud" hidden>
+    <div id="hud-daily" class="hud-daily" title="Daily Street" hidden>📅<span> Daily</span></div>
     <div class="hud-score"><span id="hud-hops">0</span><small>hops</small></div>
     <div class="hud-coins"><span class="naira">₦</span><span id="hud-coins">0</span></div>
   </div>
 
+  <button id="pause-btn" class="round-btn pause-btn" type="button" aria-label="Pause" title="Pause (P)" hidden>⏸</button>
   <button id="mute" class="round-btn" type="button" aria-label="Mute sound" title="Mute (M)">🔊</button>
+
+  <!-- first-run hint and floating pop-ups -->
+  <div id="hint" class="hint" hidden><span class="keys">↑ to hop</span><span class="touch">Tap to hop</span><small><span class="keys">← → to dodge</span><span class="touch">Swipe to dodge</span></small></div>
+  <div id="popups" aria-live="polite"></div>
+  <div id="toast" class="toast" hidden></div>
 
   <!-- menu -->
   <section id="menu" class="screen">
@@ -47,6 +54,7 @@
       <p id="greeting" class="greeting"></p>
       <p id="status" class="status">Connecting to start.ng…</p>
       <div id="menu-buttons" class="buttons"></div>
+      <button id="daily-btn" class="btn daily" type="button" hidden>📅 Daily Street <small id="daily-sub"></small></button>
       <p id="note" class="note" hidden></p>
       <p id="menu-best" class="best" hidden></p>
       <button id="open-board" class="link-btn" type="button" hidden>🏆 Leaderboard</button>
@@ -57,6 +65,7 @@
   <!-- game over -->
   <section id="over" class="screen" hidden>
     <div class="panel">
+      <p id="over-mode" class="over-mode" hidden></p>
       <p id="over-message" class="over-message"></p>
       <div class="result">
         <div><span id="over-hops">0</span><small>hops</small></div>
@@ -67,9 +76,22 @@
       <div id="over-board" class="board" hidden></div>
       <div class="buttons">
         <button id="again" class="btn primary" type="button">Hop again</button>
+        <button id="share" class="btn" type="button">📣 Share score</button>
         <button id="over-sign-in" class="btn" type="button" hidden>Sign in to save runs</button>
       </div>
       <button id="to-menu" class="link-btn" type="button">Menu</button>
+    </div>
+  </section>
+
+  <!-- paused -->
+  <section id="pause" class="screen" hidden>
+    <div class="panel">
+      <h2>Paused</h2>
+      <p class="note">Take a breath. The danfos will wait.</p>
+      <div class="buttons">
+        <button id="resume" class="btn primary" type="button">Resume</button>
+      </div>
+      <button id="pause-menu" class="link-btn" type="button">Quit to menu</button>
     </div>
   </section>
 

@@ -2,7 +2,7 @@
 import { Game } from './game.js';
 import { DEFAULT_STYLE } from './character.js';
 import { START_NG, ASKED_GUEST, BACK_FROM_SIGN_IN, whoami, onUserChange, signIn, saveRun, getLeaderboard } from './platform.js';
-import { getBest, saveBest } from './scores.js';
+import { getBest, saveBest, dailySeed, todayInLagos, getDailyBest, saveDailyBest } from './scores.js';
 import { unlockAudio, toggleMute, isMuted, sfx } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -20,8 +20,11 @@ const COVER = params.has('cover');
 const seed = params.has('seed') ? Number(params.get('seed')) || 1 : undefined;
 
 const ui = {
-  menu: $('menu'), over: $('over'), boardScreen: $('board-screen'), hud: $('hud'), chip: $('player-chip'),
+  menu: $('menu'), over: $('over'), boardScreen: $('board-screen'), pause: $('pause'), hud: $('hud'), chip: $('player-chip'),
 };
+
+let mode = 'free'; // 'free' (a new street every run) or 'daily' (today's street, the same for everyone)
+const GAME_URL = 'https://gidi-hop.start.ng';
 
 // ---------------------------------------------------------------- who's playing
 
@@ -43,8 +46,12 @@ const game = new Game($('scene'), {
   onUpdate: (run) => {
     $('hud-hops').textContent = run.hops;
     $('hud-coins').textContent = run.coins;
+    if (run.hops > 0) hideHint();
   },
   onDeath: (result) => showGameOver(result),
+  onEvent: (e) => {
+    if (e.type === 'nearMiss') popup('Close one! +₦1', e.x, e.y);
+  },
 });
 game.setStyle(player().style);
 
@@ -99,20 +106,20 @@ function renderMenu() {
       small.textContent = `@${session.user.account}`;
       greeting.append(small);
     }
-    buttons.append(button('Play', 'primary', play));
+    buttons.append(button('Play', 'primary', () => play('free')));
   } else if (!START_NG) {
-    buttons.append(button('Play as guest', 'primary', play));
+    buttons.append(button('Play as guest', 'primary', () => play('free')));
     note.hidden = false;
     note.textContent = "Sign-in isn't available here, so you're playing as a guest. Play at gidi-hop.start.ng to sign in and join the leaderboard.";
   } else if (session.chose === 'guest') {
     greeting.textContent = 'Playing as Guest';
-    buttons.append(button('Play', 'primary', play), button('Sign in with start.ng', 'startng', signIn));
+    buttons.append(button('Play', 'primary', () => play('free')), button('Sign in with start.ng', 'startng', signIn));
   } else {
     buttons.append(
       button('Sign in with start.ng', 'startng', signIn),
       button('Play as guest', 'primary', () => {
         session.chose = 'guest';
-        play();
+        play('free');
       }),
     );
     if (!session.reachable) {
@@ -120,6 +127,10 @@ function renderMenu() {
       note.textContent = "Couldn't reach start.ng just now. You can still play as a guest.";
     }
   }
+
+  $('daily-btn').hidden = !session.checked;
+  const daily = getDailyBest(playerKey());
+  $('daily-sub').textContent = `${prettyDay()} · same street for everyone${daily.hops ? ` · your best ${daily.hops}` : ''}`;
 
   const best = getBest(playerKey());
   $('menu-best').hidden = !best.hops;
@@ -132,16 +143,89 @@ function showScreen(name) {
   ui.menu.hidden = name !== 'menu';
   ui.over.hidden = name !== 'over';
   ui.boardScreen.hidden = name !== 'board';
-  ui.hud.hidden = name !== 'play' && name !== 'over';
+  ui.pause.hidden = name !== 'pause';
+  ui.hud.hidden = !['play', 'over', 'pause'].includes(name);
+  $('pause-btn').hidden = name !== 'play';
+  if (name !== 'play') hideHint(true);
 }
 
-function play() {
-  unlockAudio();
-  showScreen('play');
-  game.start();
+/** "Fri 16 Oct" for today in Lagos. */
+function prettyDay() {
+  return new Date(`${todayInLagos()}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
+
+function play(nextMode = mode) {
+  unlockAudio();
+  mode = nextMode;
+  if (!session.user && START_NG && !session.chose) session.chose = 'guest';
+  showScreen('play');
+  $('hud-daily').hidden = mode !== 'daily';
+  game.start(mode === 'daily' ? dailySeed() : undefined);
+  showHint();
+}
+
+// ---------------------------------------------------------------- hint, pop-ups, toast
+
+let hintTimer = 0;
+function showHint() {
+  const hint = $('hint');
+  hint.classList.remove('fade');
+  hint.hidden = false;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hideHint(), 5000);
+}
+
+function hideHint(now = false) {
+  const hint = $('hint');
+  if (hint.hidden) return;
+  clearTimeout(hintTimer);
+  if (now) {
+    hint.hidden = true;
+    return;
+  }
+  hint.classList.add('fade');
+  hintTimer = setTimeout(() => (hint.hidden = true), 400);
+}
+
+function popup(text, x, y) {
+  const el = document.createElement('div');
+  el.className = 'popup';
+  el.textContent = text;
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  $('popups').append(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+let toastTimer = 0;
+function toast(text) {
+  const el = $('toast');
+  el.textContent = text;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.hidden = true), 2200);
+}
+
+// ---------------------------------------------------------------- pause
+
+function pauseGame() {
+  if (!game.pause()) return;
+  showScreen('pause');
+}
+
+function resumeGame() {
+  if (ui.pause.hidden) return;
+  showScreen('play');
+  game.resume();
+}
+
+// pause by itself when the player switches tabs or apps
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && game.state === 'playing' && !game.paused) pauseGame();
+});
 
 function toMenu() {
+  game.resume();
   game.reset(seed);
   showScreen('menu');
   renderMenu();
@@ -150,24 +234,51 @@ function toMenu() {
 // ---------------------------------------------------------------- game over & leaderboard
 
 let overToken = 0;
+let lastResult = null;
+
+async function shareScore() {
+  if (!lastResult) return;
+  const { hops, coins } = lastResult;
+  const where = lastResult.mode === 'daily' ? ` on the Daily Street (${prettyDay()})` : '';
+  const text = `I hopped ${hops} rows across Lagos${where} in Gidi Hop 🚌 and grabbed ₦${coins}. Can you beat me?`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Gidi Hop', text, url: GAME_URL });
+      return;
+    }
+  } catch (e) {
+    if (e?.name === 'AbortError') return; // the player closed the share sheet
+  }
+  try {
+    await navigator.clipboard.writeText(`${text} ${GAME_URL}`);
+    toast('Copied! Paste it anywhere 📋');
+  } catch {
+    toast("Couldn't copy. Your browser blocked it.");
+  }
+}
 
 async function showGameOver(result) {
   const token = ++overToken;
   showScreen('over');
+  lastResult = { ...result, mode };
   $('over-message').textContent = result.message;
   $('over-hops').textContent = result.hops;
   $('over-coins').textContent = result.coins;
-  const improved = saveBest(playerKey(), result);
-  const best = getBest(playerKey());
+  $('over-mode').hidden = mode !== 'daily';
+  $('over-mode').textContent = `📅 DAILY STREET · ${prettyDay().toUpperCase()}`;
+  const daily = mode === 'daily';
+  const improvedAll = saveBest(playerKey(), result);
+  const improved = daily ? saveDailyBest(playerKey(), result) : improvedAll;
+  const best = daily ? getDailyBest(playerKey()) : getBest(playerKey());
   $('over-best').innerHTML = '';
   if (improved && result.hops > 0) {
     const tag = document.createElement('span');
     tag.className = 'new-best';
-    tag.textContent = 'New best!';
+    tag.textContent = daily ? "Today's best!" : 'New best!';
     $('over-best').append(tag);
     sfx.best();
   } else {
-    $('over-best').textContent = `Best: ${best.hops} hops · ₦${best.coins}`;
+    $('over-best').textContent = `${daily ? "Today's best" : 'Best'}: ${best.hops} hops · ₦${best.coins}`;
   }
   $('over-rank').textContent = '';
   $('over-sign-in').hidden = !!session.user || !START_NG;
@@ -247,10 +358,17 @@ addEventListener('keydown', (e) => {
   if (dir) e.preventDefault();
   if (e.repeat) return;
   unlockAudio();
+  if (!ui.pause.hidden) {
+    if (['KeyP', 'Escape', 'Space', 'Enter'].includes(e.code)) {
+      e.preventDefault();
+      resumeGame();
+    }
+    return;
+  }
+  if ((e.code === 'KeyP' || e.code === 'Escape') && game.state === 'playing') return pauseGame();
   if (!ui.menu.hidden && (dir === 'forward' || e.code === 'Space' || e.code === 'Enter') && canPlayFromMenu()) {
     e.preventDefault();
-    if (!session.user && START_NG && !session.chose) session.chose = 'guest';
-    return play();
+    return play('free');
   }
   if (!ui.over.hidden && (e.code === 'Space' || e.code === 'Enter')) {
     e.preventDefault();
@@ -276,7 +394,7 @@ canvas.addEventListener('pointerup', (e) => {
   touchStart = null;
   unlockAudio();
   if (game.state === 'menu') return game.wave();
-  if (game.state !== 'playing') return;
+  if (game.state !== 'playing' || game.paused) return;
   const dist = Math.hypot(dx, dy);
   if (dist < 24) return game.move('forward');
   if (Math.abs(dx) > Math.abs(dy)) game.move(dx > 0 ? 'right' : 'left');
@@ -294,7 +412,15 @@ $('mute').addEventListener('click', (e) => {
 });
 setMute(isMuted());
 
-$('again').addEventListener('click', play);
+$('again').addEventListener('click', () => play());
+$('share').addEventListener('click', shareScore);
+$('daily-btn').addEventListener('click', () => play('daily'));
+$('pause-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  pauseGame();
+});
+$('resume').addEventListener('click', resumeGame);
+$('pause-menu').addEventListener('click', toMenu);
 $('to-menu').addEventListener('click', toMenu);
 $('over-sign-in').addEventListener('click', signIn);
 $('chip-sign-in').addEventListener('click', signIn);
